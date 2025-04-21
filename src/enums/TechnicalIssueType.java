@@ -1,0 +1,5 @@
+package enums;
+
+public enum TechnicalIssueType {
+    SCHEDULE_DISPLAY, AIR_CONDITIONING, SOUND_SYSTEM, FARE_READER , GENERAL_FAILURE
+}

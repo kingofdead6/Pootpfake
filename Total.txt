@@ -1,0 +1,102 @@
+i have this code make it more larger and add to it all the possible functions that might be asked and needed considering this exercice text 
+A transport company wants to design and implement an application to manage the public
+transportation system of a city. Each mode of transport is characterized by its code, the
+transport line it serves, the type of power supply (Diesel, Electricity, Hybrid), and the number of
+kilometers traveled.
+
+To travel, a passenger is required to obtain a fare medium from the station counter (a fare
+medium is an item that grants access to transport services such as tickets or passes). It can be
+paid in cash, with a Dahabia card, ar via the BaridiMob application. A fare medium is
+characterized by its identifier, purchase date and time, served zones (center, periphery, or both),
+activation date and time (first trip), price, and payment method (cash, Dahabia card, BaridiMob
+app). Before boarding a mode of transport, the passenger validates their fare medium using a
+magnetic reader at the station, which then grants access. Each station has a counter and at least
+one magnetic reader. A passenger can buy multiple fare media.
+
+The company wants to identify each passenger by a number and record the station where the
+purchase was made for statistical purposes.
+
+A transport line is served by a single mode of transport and follows a fixed route with multiple
+stations. It is defined by a unique number, a total length in kilometers, an ordered list of stations
+where it stops (at least three stations), and an operating schedule (first and last departures).
+A station is a stopping point on a transport line and is defined by a unique code, a name, the
+municipality where it is located, its location zone (city center or periphery), a single counter for
+fare media purchases, and at least one magnetic reader for fare validation. A station can be
+served by multiple lines.
+
+Stations and modes of transport can be either operational (in service) or suspended
+(temporarily deactivated for maintenance reasons).
+
+to ensure quality of service, the company allows passengers to report issues via the application
+related to their travel experience. Each complaint is analyzed within 24 hours of being reported.
+It may be rejected if unfounded, or approved and then sent for processing. Each complaint is 
+identified by a number, the person who submitted it (either a passenger or an employee of the
+company : station agent or driver), an optional short description of the issue, and the report
+date. Each complaint is linked to the station where it was reported. If the complaint relates to a
+mode of transport, the person submitting it can specify the departure or arrival station, allowing
+the relevant service at that station to process the request.A person can report multiple complaints if they wish.
+
+We identify three types of complaints: (1) Technical complaints: These concern technical
+malfunctions of transport modes or stations. They are characterized by the type of issue, which
+can be: inaccurate/missing schedule displays, air conditioning/heating issues in the vehicle or
+the station, sound system problems, defective fare reader; the mode of transport or the station
+concerned by the technical issue, along with its severity level (low, medium, high). The severity
+is assessed by the station's service handling the complaint (2) Fare payment complaints: These
+relate to issues with financial transactions. They are characterized by the amount involved and
+the payment method used. (3) Service and safety complaints: These complaints relate to
+interactions with staff and passenger safety. They are categorized by the type of issue, which
+may involve inappropriate behavior, assault, or theft.
+
+If a mode of transport or a station receives more than three approved technical complaints with
+a high severity level within 24 hours, it is automatically suspended for inspection and
+maintenance. The suspension is lifted once all complaints have been processed by the relevant
+services, and their status is updated to 'resolved'. During the suspension and after the
+reactivation of stations or modes of transport, passengers are informed through announcements
+displayed at stations and on the application.
+
+The system must provide the following features:
+Manage fare medium sales transactions
+   The system must allow for displaying the purchase history of fare media by station.
+   It must also support generating revenue reports by payment method (cash,Dahabia card, BaridiMob app).
+
+Analyze transportation usage
+   the system must record the number of visitors - defined as passengers who have validated a fare medium - entering a station during a given time period.
+   It may also provide statistics on peak and off-peak days of the week
+Manage the status of transport modes and stations
+   The system must allow for displaying the number and types of complaints per station or mode of transport.
+   It must also provide the total number of suspended stations and modes of transport
+
+
+this is my files structure 
+
+src/
+├── enums/
+│   ├── ComplaintStatus.java
+│   ├── ComplaintType.java
+│   ├── PaymentMethod.java
+│   ├── PowerSupply.java
+│   ├── ServiceSafetyIssueType.java
+│   ├── SeverityLevel.java
+│   ├── TechnicalIssueType.java
+│   └── Zone.java
+├── models/
+│   ├── Complaint.java
+│   ├── FareMedium.java
+│   ├── FarePaymentComplaint.java
+│   ├── Person.java
+│   ├── Passenger.java
+│   ├── Employee.java
+│   ├── StationAgent.java
+│   ├── Driver.java
+│   ├── ServiceSafetyComplaint.java
+│   ├── Station.java
+│   ├── TechnicalComplaint.java
+│   ├── TransportLine.java
+│   └── TransportMode.java
+└── services/
+    ├── ComplaintService.java
+    ├── FareService.java
+    ├── ReportService.java
+    |── SystemManager.java
+    |__ NotificationService.java 
+```

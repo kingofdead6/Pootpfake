@@ -1,0 +1,887 @@
+I have this code and this is its instruction give it the missing things and fix the issues that it contains  and give me the main as well
+
+A transport company wants to design and implement an application to manage the public
+transportation system of a city. Each mode of transport is characterized by its code, the
+transport line it serves, the type of power supply (Diesel, Electricity, Hybrid), and the number of
+kilometers traveled.
+
+To travel, a passenger is required to obtain a fare medium from the station counter (a fare
+medium is an item that grants access to transport services such as tickets or passes). It can be
+paid in cash, with a Dahabia card, ar via the BaridiMob application. A fare medium is
+characterized by its identifier, purchase date and time, served zones (center, periphery, or both),
+activation date and time (first trip), price, and payment method (cash, Dahabia card, BaridiMob
+app). Before boarding a mode of transport, the passenger validates their fare medium using a
+magnetic reader at the station, which then grants access. Each station has a counter and at least
+one magnetic reader. A passenger can buy multiple fare media.
+
+The company wants to identify each passenger by a number and record the station where the
+purchase was made for statistical purposes.
+
+A transport line is served by a single mode of transport and follows a fixed route with multiple
+stations. It is defined by a unique number, a total length in kilometers, an ordered list of stations
+where it stops (at least three stations), and an operating schedule (first and last departures).
+A station is a stopping point on a transport line and is defined by a unique code, a name, the
+municipality where it is located, its location zone (city center or periphery), a single counter for
+fare media purchases, and at least one magnetic reader for fare validation. A station can be
+served by multiple lines.
+
+Stations and modes of transport can be either operational (in service) or suspended
+(temporarily deactivated for maintenance reasons).
+
+to ensure quality of service, the company allows passengers to report issues via the application
+related to their travel experience. Each complaint is analyzed within 24 hours of being reported.
+It may be rejected if unfounded, or approved and then sent for processing. Each complaint is 
+identified by a number, the person who submitted it (either a passenger or an employee of the
+company : station agent or driver), an optional short description of the issue, and the report
+date. Each complaint is linked to the station where it was reported. If the complaint relates to a
+mode of transport, the person submitting it can specify the departure or arrival station, allowing
+the relevant service at that station to process the request.A person can report multiple complaints if they wish.
+
+We identify three types of complaints: (1) Technical complaints: These concern technical
+malfunctions of transport modes or stations. They are characterized by the type of issue, which
+can be: inaccurate/missing schedule displays, air conditioning/heating issues in the vehicle or
+the station, sound system problems, defective fare reader; the mode of transport or the station
+concerned by the technical issue, along with its severity level (low, medium, high). The severity
+is assessed by the station's service handling the complaint (2) Fare payment complaints: These
+relate to issues with financial transactions. They are characterized by the amount involved and
+the payment method used. (3) Service and safety complaints: These complaints relate to
+interactions with staff and passenger safety. They are categorized by the type of issue, which
+may involve inappropriate behavior, assault, or theft.
+
+If a mode of transport or a station receives more than three approved technical complaints with
+a high severity level within 24 hours, it is automatically suspended for inspection and
+maintenance. The suspension is lifted once all complaints have been processed by the relevant
+services, and their status is updated to 'resolved'. During the suspension and after the
+reactivation of stations or modes of transport, passengers are informed through announcements
+displayed at stations and on the application.
+
+The system must provide the following features:
+Manage fare medium sales transactions
+   The system must allow for displaying the purchase history of fare media by station.
+   It must also support generating revenue reports by payment method (cash,Dahabia card, BaridiMob app).
+
+Analyze transportation usage
+   the system must record the number of visitors - defined as passengers who have validated a fare medium - entering a station during a given time period.
+   It may also provide statistics on peak and off-peak days of the week
+Manage the status of transport modes and stations
+   The system must allow for displaying the number and types of complaints per station or mode of transport.
+   It must also provide the total number of suspended stations and modes of transport
+
+
+## File Structure
+
+```
+src/
+├── enums/
+│   ├── ComplaintStatus.java
+│   ├── ComplaintType.java
+│   ├── PaymentMethod.java
+│   ├── PowerSupply.java
+│   ├── ServiceSafetyIssueType.java
+│   ├── SeverityLevel.java
+│   ├── TechnicalIssueType.java
+│   └── Zone.java
+├── models/
+│   ├── Complaint.java
+│   ├── FareMedium.java
+│   ├── FarePaymentComplaint.java
+│   ├── Person.java
+│   ├── Passenger.java
+│   ├── Employee.java
+│   ├── StationAgent.java
+│   ├── Driver.java
+│   ├── ServiceSafetyComplaint.java
+│   ├── Station.java
+│   ├── TechnicalComplaint.java
+│   ├── TransportLine.java
+│   └── TransportMode.java
+└── services/
+    ├── ComplaintService.java
+    ├── FareService.java
+    ├── ReportService.java
+    └── SystemManager.java
+```
+
+## Complete Code Implementation
+
+### 1. Enums
+
+#### `enums/PowerSupply.java`
+```java
+package enums;
+
+public enum PowerSupply {
+    DIESEL, ELECTRICITY, HYBRID
+}
+```
+
+#### `enums/Zone.java`
+```java
+package enums;
+
+public enum Zone {
+    CENTER, PERIPHERY, BOTH
+}
+```
+
+#### `enums/PaymentMethod.java`
+```java
+package enums;
+
+public enum PaymentMethod {
+    CASH, DAHABIA_CARD, BARIDI_MOB
+}
+```
+
+#### `enums/ComplaintStatus.java`
+```java
+package enums;
+
+public enum ComplaintStatus {
+    PENDING, APPROVED, REJECTED, RESOLVED
+}
+```
+
+#### `enums/SeverityLevel.java`
+```java
+package enums;
+
+public enum SeverityLevel {
+    LOW, MEDIUM, HIGH
+}
+```
+
+#### `enums/ComplaintType.java`
+```java
+package enums;
+
+public enum ComplaintType {
+    TECHNICAL, FARE_PAYMENT, SERVICE_SAFETY
+}
+```
+
+#### `enums/TechnicalIssueType.java`
+```java
+package enums;
+
+public enum TechnicalIssueType {
+    SCHEDULE_DISPLAY, AIR_CONDITIONING, SOUND_SYSTEM, FARE_READER
+}
+```
+
+#### `enums/ServiceSafetyIssueType.java`
+```java
+package enums;
+
+public enum ServiceSafetyIssueType {
+    BEHAVIOR, ASSAULT, THEFT
+}
+```
+
+### 2. Models
+
+#### `models/Person.java`
+```java
+package models;
+
+public abstract class Person {
+    protected int id;
+    protected String name;
+    
+    public Person(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+}
+```
+
+#### `models/Passenger.java`
+```java
+package models;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class Passenger extends Person {
+    private List<FareMedium> fareMedia;
+    
+    public Passenger(int id, String name) {
+        super(id, name);
+        this.fareMedia = new ArrayList<>();
+    }
+    
+    public void purchaseFareMedium(Station station, FareMedium fareMedium) {
+        station.sellFareMedium(this, fareMedium);
+        fareMedia.add(fareMedium);
+    }
+    
+    public void validateFareMedium(FareMedium fareMedium) {
+        fareMedium.validate();
+    }
+    
+    public void submitComplaint(Complaint complaint) {
+        complaint.setSubmitter(this);
+    }
+
+    public List<FareMedium> getFareMedia() {
+        return fareMedia;
+    }
+}
+```
+
+#### `models/Employee.java`
+```java
+package models;
+
+public abstract class Employee extends Person {
+    protected Station assignedStation;
+    
+    public Employee(int id, String name, Station station) {
+        super(id, name);
+        this.assignedStation = station;
+    }
+    
+    public abstract void processComplaint(Complaint complaint);
+
+    public Station getAssignedStation() {
+        return assignedStation;
+    }
+}
+```
+
+#### `models/StationAgent.java`
+```java
+package models;
+
+import java.time.LocalDateTime;
+
+public class StationAgent extends Employee {
+    public StationAgent(int id, String name, Station station) {
+        super(id, name, station);
+    }
+    
+    public void sellFareMedium(Passenger passenger, FareMedium fareMedium) {
+        fareMedium.setPurchaseStation(assignedStation);
+        fareMedium.setPurchaseDateTime(LocalDateTime.now());
+        passenger.purchaseFareMedium(assignedStation, fareMedium);
+    }
+    
+    @Override
+    public void processComplaint(Complaint complaint) {
+        complaint.setStatus(ComplaintStatus.PENDING);
+        assignedStation.addComplaint(complaint);
+    }
+}
+```
+
+#### `models/Driver.java`
+```java
+package models;
+
+public class Driver extends Employee {
+    private TransportMode assignedTransport;
+    
+    public Driver(int id, String name, Station station, TransportMode transport) {
+        super(id, name, station);
+        this.assignedTransport = transport;
+    }
+    
+    @Override
+    public void processComplaint(Complaint complaint) {
+        if (complaint instanceof TechnicalComplaint) {
+            TechnicalComplaint techComplaint = (TechnicalComplaint) complaint;
+            if (techComplaint.getTransport() == assignedTransport) {
+                complaint.setStatus(ComplaintStatus.PENDING);
+                assignedStation.addComplaint(complaint);
+            }
+        }
+    }
+
+    public TransportMode getAssignedTransport() {
+        return assignedTransport;
+    }
+}
+```
+
+#### `models/TransportMode.java`
+```java
+package models;
+
+public class TransportMode {
+    private String code;
+    private TransportLine line;
+    private PowerSupply powerSupply;
+    private double kilometersTraveled;
+    private boolean isSuspended;
+    
+    public TransportMode(String code, TransportLine line, PowerSupply powerSupply) {
+        this.code = code;
+        this.line = line;
+        this.powerSupply = powerSupply;
+        this.isSuspended = false;
+    }
+    
+    public void suspend() {
+        this.isSuspended = true;
+    }
+    
+    public void reactivate() {
+        this.isSuspended = false;
+    }
+
+    // Getters and setters
+    public String getCode() { return code; }
+    public TransportLine getLine() { return line; }
+    public PowerSupply getPowerSupply() { return powerSupply; }
+    public double getKilometersTraveled() { return kilometersTraveled; }
+    public boolean isSuspended() { return isSuspended; }
+    public void setKilometersTraveled(double kilometersTraveled) { this.kilometersTraveled = kilometersTraveled; }
+}
+```
+
+#### `models/TransportLine.java`
+```java
+package models;
+
+import java.time.LocalTime;
+import java.util.List;
+
+public class TransportLine {
+    private int number;
+    private double length;
+    private List<Station> stations;
+    private LocalTime firstDeparture;
+    private LocalTime lastDeparture;
+    
+    public TransportLine(int number, double length, List<Station> stations, 
+                        LocalTime firstDeparture, LocalTime lastDeparture) {
+        this.number = number;
+        this.length = length;
+        this.stations = stations;
+        this.firstDeparture = firstDeparture;
+        this.lastDeparture = lastDeparture;
+    }
+
+    // Getters
+    public int getNumber() { return number; }
+    public double getLength() { return length; }
+    public List<Station> getStations() { return stations; }
+    public LocalTime getFirstDeparture() { return firstDeparture; }
+    public LocalTime getLastDeparture() { return lastDeparture; }
+}
+```
+
+#### `models/Station.java`
+```java
+package models;
+
+import java.util.ArrayList;
+import java.util.List;
+import enums.Zone;
+
+public class Station {
+    private String code;
+    private String name;
+    private String municipality;
+    private Zone zone;
+    private boolean isSuspended;
+    private List<TransportLine> lines;
+    private List<Complaint> complaints;
+    
+    public Station(String code, String name, String municipality, Zone zone) {
+        this.code = code;
+        this.name = name;
+        this.municipality = municipality;
+        this.zone = zone;
+        this.isSuspended = false;
+        this.lines = new ArrayList<>();
+        this.complaints = new ArrayList<>();
+    }
+    
+    public void sellFareMedium(Passenger passenger, FareMedium fareMedium) {
+        // In a real system, this would interact with the payment system
+        passenger.getFareMedia().add(fareMedium);
+    }
+    
+    public void suspend() {
+        this.isSuspended = true;
+        // Notify passengers
+    }
+    
+    public void reactivate() {
+        this.isSuspended = false;
+        // Notify passengers
+    }
+    
+    public void addComplaint(Complaint complaint) {
+        complaints.add(complaint);
+    }
+
+    // Getters and setters
+    public String getCode() { return code; }
+    public String getName() { return name; }
+    public String getMunicipality() { return municipality; }
+    public Zone getZone() { return zone; }
+    public boolean isSuspended() { return isSuspended; }
+    public List<TransportLine> getLines() { return lines; }
+    public List<Complaint> getComplaints() { return complaints; }
+    
+    public void addTransportLine(TransportLine line) {
+        lines.add(line);
+    }
+}
+```
+
+#### `models/FareMedium.java`
+```java
+package models;
+
+import java.time.LocalDateTime;
+import enums.PaymentMethod;
+import enums.Zone;
+
+public class FareMedium {
+    private int id;
+    private LocalDateTime purchaseDateTime;
+    private Zone zones;
+    private LocalDateTime activationDateTime;
+    private double price;
+    private PaymentMethod paymentMethod;
+    private Station purchaseStation;
+    
+    public FareMedium(int id, Zone zones, double price, PaymentMethod paymentMethod) {
+        this.id = id;
+        this.zones = zones;
+        this.price = price;
+        this.paymentMethod = paymentMethod;
+    }
+    
+    public void validate() {
+        if (activationDateTime == null) {
+            activationDateTime = LocalDateTime.now();
+        }
+    }
+    
+    public void setPurchaseStation(Station station) {
+        this.purchaseStation = station;
+    }
+    
+    public void setPurchaseDateTime(LocalDateTime purchaseDateTime) {
+        this.purchaseDateTime = purchaseDateTime;
+    }
+
+    // Getters
+    public int getId() { return id; }
+    public LocalDateTime getPurchaseDateTime() { return purchaseDateTime; }
+    public Zone getZones() { return zones; }
+    public LocalDateTime getActivationDateTime() { return activationDateTime; }
+    public double getPrice() { return price; }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+    public Station getPurchaseStation() { return purchaseStation; }
+}
+```
+
+#### `models/Complaint.java`
+```java
+package models;
+
+import java.time.LocalDateTime;
+
+public abstract class Complaint {
+    private int id;
+    private Person submitter;
+    private String description;
+    private LocalDateTime reportDate;
+    private Station station;
+    private ComplaintStatus status;
+    private Station departureStation;
+    private Station arrivalStation;
+    
+    public Complaint(int id, String description, Station station) {
+        this.id = id;
+        this.description = description;
+        this.station = station;
+        this.reportDate = LocalDateTime.now();
+        this.status = ComplaintStatus.PENDING;
+    }
+    
+    public void setSubmitter(Person submitter) {
+        this.submitter = submitter;
+    }
+    
+    public void setStatus(ComplaintStatus status) {
+        this.status = status;
+    }
+    
+    public abstract void processComplaint();
+
+    // Getters
+    public int getId() { return id; }
+    public Person getSubmitter() { return submitter; }
+    public String getDescription() { return description; }
+    public LocalDateTime getReportDate() { return reportDate; }
+    public Station getStation() { return station; }
+    public ComplaintStatus getStatus() { return status; }
+    public Station getDepartureStation() { return departureStation; }
+    public Station getArrivalStation() { return arrivalStation; }
+    
+    public void setDepartureStation(Station departureStation) {
+        this.departureStation = departureStation;
+    }
+    
+    public void setArrivalStation(Station arrivalStation) {
+        this.arrivalStation = arrivalStation;
+    }
+}
+```
+
+#### `models/TechnicalComplaint.java`
+```java
+package models;
+
+import enums.SeverityLevel;
+import enums.TechnicalIssueType;
+
+public class TechnicalComplaint extends Complaint {
+    private TechnicalIssueType issueType;
+    private TransportMode transport;
+    private SeverityLevel severity;
+    
+    public TechnicalComplaint(int id, String description, Station station, 
+                             TechnicalIssueType issueType, TransportMode transport) {
+        super(id, description, station);
+        this.issueType = issueType;
+        this.transport = transport;
+        this.severity = SeverityLevel.MEDIUM; // Default severity
+    }
+    
+    @Override
+    public void processComplaint() {
+        // Specific processing for technical complaints
+        if (severity == SeverityLevel.HIGH) {
+            transport.suspend();
+        }
+    }
+
+    // Getters and setters
+    public TechnicalIssueType getIssueType() { return issueType; }
+    public TransportMode getTransport() { return transport; }
+    public SeverityLevel getSeverity() { return severity; }
+    
+    public void setSeverity(SeverityLevel severity) {
+        this.severity = severity;
+    }
+}
+```
+
+#### `models/FarePaymentComplaint.java`
+```java
+package models;
+
+import enums.PaymentMethod;
+
+public class FarePaymentComplaint extends Complaint {
+    private double amount;
+    private PaymentMethod paymentMethod;
+    
+    public FarePaymentComplaint(int id, String description, Station station, 
+                               double amount, PaymentMethod paymentMethod) {
+        super(id, description, station);
+        this.amount = amount;
+        this.paymentMethod = paymentMethod;
+    }
+    
+    @Override
+    public void processComplaint() {
+        // Specific processing for payment complaints
+        // Could involve refund processing, etc.
+    }
+
+    // Getters
+    public double getAmount() { return amount; }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+}
+```
+
+#### `models/ServiceSafetyComplaint.java`
+```java
+package models;
+
+import enums.ServiceSafetyIssueType;
+
+public class ServiceSafetyComplaint extends Complaint {
+    private ServiceSafetyIssueType issueType;
+    
+    public ServiceSafetyComplaint(int id, String description, Station station, 
+                                 ServiceSafetyIssueType issueType) {
+        super(id, description, station);
+        this.issueType = issueType;
+    }
+    
+    @Override
+    public void processComplaint() {
+        // Specific processing for safety complaints
+        // Could involve HR actions, security measures, etc.
+    }
+
+    // Getters
+    public ServiceSafetyIssueType getIssueType() { return issueType; }
+}
+```
+
+### 3. Services
+
+#### `services/ComplaintService.java`
+```java
+package services;
+
+import models.*;
+import enums.ComplaintStatus;
+import enums.SeverityLevel;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class ComplaintService {
+    public void processComplaint(Complaint complaint) {
+        complaint.processComplaint();
+        
+        if (complaint instanceof TechnicalComplaint) {
+            TechnicalComplaint techComplaint = (TechnicalComplaint) complaint;
+            checkForSuspension(techComplaint);
+        }
+    }
+    
+    private void checkForSuspension(TechnicalComplaint complaint) {
+        Station station = complaint.getStation();
+        TransportMode transport = complaint.getTransport();
+        
+        if (complaint.getSeverity() == SeverityLevel.HIGH) {
+            // Check for station complaints
+            long highSeverityStationComplaints = station.getComplaints().stream()
+                .filter(c -> c instanceof TechnicalComplaint)
+                .filter(c -> ((TechnicalComplaint)c).getSeverity() == SeverityLevel.HIGH)
+                .filter(c -> ChronoUnit.HOURS.between(c.getReportDate(), LocalDateTime.now()) <= 24)
+                .count();
+            
+            if (highSeverityStationComplaints >= 3) {
+                station.suspend();
+            }
+            
+            // Check for transport complaints
+            long highSeverityTransportComplaints = station.getComplaints().stream()
+                .filter(c -> c instanceof TechnicalComplaint)
+                .filter(c -> ((TechnicalComplaint)c).getTransport() == transport)
+                .filter(c -> ((TechnicalComplaint)c).getSeverity() == SeverityLevel.HIGH)
+                .filter(c -> ChronoUnit.HOURS.between(c.getReportDate(), LocalDateTime.now()) <= 24)
+                .count();
+            
+            if (highSeverityTransportComplaints >= 3) {
+                transport.suspend();
+            }
+        }
+    }
+    
+    public List<Complaint> getComplaintsByStation(Station station) {
+        return station.getComplaints();
+    }
+    
+    public List<Complaint> getComplaintsByTransport(TransportMode transport) {
+        return transport.getLine().getStations().stream()
+            .flatMap(s -> s.getComplaints().stream())
+            .filter(c -> c instanceof TechnicalComplaint)
+            .filter(c -> ((TechnicalComplaint)c).getTransport() == transport)
+            .collect(Collectors.toList());
+    }
+}
+```
+
+#### `services/FareService.java`
+```java
+package services;
+
+import models.*;
+import enums.PaymentMethod;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class FareService {
+    public void sellFareMedium(Passenger passenger, Station station, 
+                             FareMedium fareMedium, StationAgent agent) {
+        agent.sellFareMedium(passenger, fareMedium);
+    }
+    
+    public List<FareMedium> getPurchaseHistoryByStation(Station station) {
+        // In a real system, this would query a database
+        // Here we return an empty list as a placeholder
+        return List.of();
+    }
+    
+    public double calculateRevenueByPaymentMethod(PaymentMethod method) {
+        // In a real system, this would query a database
+        // Here we return 0 as a placeholder
+        return 0;
+    }
+    
+    public int countVisitors(Station station, LocalDateTime start, LocalDateTime end) {
+        // In a real system, this would query validation records
+        // Here we return 0 as a placeholder
+        return 0;
+    }
+}
+```
+
+#### `services/ReportService.java`
+```java
+package services;
+
+import models.*;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class ReportService {
+    public Map<PaymentMethod, Double> generateRevenueReport() {
+        // In a real system, this would aggregate data from the database
+        // Here we return an empty map as a placeholder
+        return Map.of();
+    }
+    
+    public Map<String, Long> getComplaintStatisticsByStation(Station station) {
+        return station.getComplaints().stream()
+            .collect(Collectors.groupingBy(
+                c -> c.getClass().getSimpleName(),
+                Collectors.counting()
+            ));
+    }
+    
+    public Map<String, Long> getComplaintStatisticsByTransport(TransportMode transport) {
+        return transport.getLine().getStations().stream()
+            .flatMap(s -> s.getComplaints().stream())
+            .filter(c -> c instanceof TechnicalComplaint)
+            .filter(c -> ((TechnicalComplaint)c).getTransport() == transport)
+            .collect(Collectors.groupingBy(
+                c -> c.getClass().getSimpleName(),
+                Collectors.counting()
+            ));
+    }
+    
+    public long countSuspendedStations(List<Station> stations) {
+        return stations.stream()
+            .filter(Station::isSuspended)
+            .count();
+    }
+    
+    public long countSuspendedTransports(List<TransportMode> transports) {
+        return transports.stream()
+            .filter(TransportMode::isSuspended)
+            .count();
+    }
+}
+```
+
+#### `services/SystemManager.java`
+```java
+package services;
+
+import models.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class SystemManager {
+    private List<Station> stations;
+    private List<TransportMode> transportModes;
+    private List<Passenger> passengers;
+    private List<Employee> employees;
+    
+    private FareService fareService;
+    private ComplaintService complaintService;
+    private ReportService reportService;
+    
+    public SystemManager() {
+        this.stations = new ArrayList<>();
+        this.transportModes = new ArrayList<>();
+        this.passengers = new ArrayList<>();
+        this.employees = new ArrayList<>();
+        
+        this.fareService = new FareService();
+        this.complaintService = new ComplaintService();
+        this.reportService = new ReportService();
+    }
+    
+    // Station management
+    public void addStation(Station station) {
+        stations.add(station);
+    }
+    
+    // Transport management
+    public void addTransportMode(TransportMode transport) {
+        transportModes.add(transport);
+    }
+    
+    // Passenger management
+    public void registerPassenger(Passenger passenger) {
+        passengers.add(passenger);
+    }
+    
+    // Employee management
+    public void hireEmployee(Employee employee) {
+        employees.add(employee);
+    }
+    
+    // Fare management
+    public void processFareSale(Passenger passenger, Station station, 
+                              FareMedium fareMedium, StationAgent agent) {
+        fareService.sellFareMedium(passenger, station, fareMedium, agent);
+    }
+    
+    // Complaint handling
+    public void processComplaint(Complaint complaint) {
+        complaintService.processComplaint(complaint);
+    }
+    
+    // Reporting
+    public void generateFareMediumReport(Station station) {
+        fareService.getPurchaseHistoryByStation(station);
+    }
+    
+    public void generateRevenueReport() {
+        reportService.generateRevenueReport();
+    }
+    
+    public void analyzeTransportUsage(Station station, LocalDateTime start, LocalDateTime end) {
+        fareService.countVisitors(station, start, end);
+    }
+    
+    public void displayComplaintStatistics(Station station) {
+        reportService.getComplaintStatisticsByStation(station);
+    }
+    
+    public void displayComplaintStatistics(TransportMode transport) {
+        reportService.getComplaintStatisticsByTransport(transport);
+    }
+    
+    public void displaySuspensionStatistics() {
+        long suspendedStations = reportService.countSuspendedStations(stations);
+        long suspendedTransports = reportService.countSuspendedTransports(transportModes);
+        
+        System.out.println("Suspended Stations: " + suspendedStations);
+        System.out.println("Suspended Transport Modes: " + suspendedTransports);
+    }
+
+    // Getters
+    public List<Station> getStations() { return stations; }
+    public List<TransportMode> getTransportModes() { return transportModes; }
+    public List<Passenger> getPassengers() { return passengers; }
+    public List<Employee> getEmployees() { return employees; }
+}
