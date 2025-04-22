@@ -1,10 +1,10 @@
-import models.*;
-import services.*;
 import enums.*;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
 import java.util.Arrays;
+import models.*;
+import services.*;
 
 public class Main {
     public static void main(String[] args) {

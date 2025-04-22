@@ -1,0 +1,950 @@
+package MainTry;
+
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.Month;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
+
+// ENUMS
+enum ComplaintStatus {
+    PENDING, APPROVED, REJECTED, RESOLVED
+}
+
+enum ComplaintType {
+    TECHNICAL, FARE_PAYMENT, SERVICE_SAFETY
+}
+
+enum PaymentMethod {
+    CASH, DAHABIA_CARD, BARIDIMOB_APP
+}
+
+enum PowerSupply {
+    DIESEL, ELECTRICITY, HYBRID
+}
+
+enum ServiceSafetyIssueType {
+    BEHAVIOR, ASSAULT, THEFT
+}
+
+enum SeverityLevel {
+    LOW, MEDIUM, HIGH
+}
+
+enum TechnicalIssueType {
+    SCHEDULE_DISPLAY, AIR_CONDITIONING, SOUND_SYSTEM, FARE_READER, GENERAL_FAILURE
+}
+
+enum Zone {
+    CENTER, PERIPHERY, BOTH
+}
+
+enum FareMediumType {
+    SINGLE_TICKET, DAILY_PASS, WEEKLY_PASS, MONTHLY_PASS
+}
+
+// MODELS
+abstract class Person {
+    protected int id;
+    protected String name;
+
+    public Person(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() { return id; }
+    public String getName() { return name; }
+}
+
+abstract class Employee extends Person {
+    protected Station assignedStation;
+
+    public Employee(int id, String name, Station station) {
+        super(id, name);
+        this.assignedStation = station;
+    }
+
+    public abstract void processComplaint(Complaint complaint);
+
+    public Station getAssignedStation() { return assignedStation; }
+}
+
+class Passenger extends Person {
+    private List<FareMedium> fareMedia;
+
+    public Passenger(int id, String name) {
+        super(id, name);
+        this.fareMedia = new ArrayList<>();
+    }
+
+    public void purchaseFareMedium(Station station, FareMedium fareMedium) {
+        station.sellFareMedium(this, fareMedium);
+        fareMedia.add(fareMedium);
+    }
+
+    public void validateFareMedium(FareMedium fareMedium) {
+        fareMedium.validate();
+    }
+
+    public void submitComplaint(Complaint complaint) {
+        complaint.setSubmitter(this);
+    }
+
+    public List<FareMedium> getFareMedia() { return fareMedia; }
+}
+
+class StationAgent extends Employee {
+    public StationAgent(int id, String name, Station station) {
+        super(id, name, station);
+    }
+
+    public void sellFareMedium(Passenger passenger, FareMedium fareMedium) {
+        fareMedium.setPurchaseStation(assignedStation);
+        fareMedium.setPurchaseDateTime(LocalDateTime.now());
+        passenger.purchaseFareMedium(assignedStation, fareMedium);
+    }
+
+    @Override
+    public void processComplaint(Complaint complaint) {
+        complaint.setStatus(ComplaintStatus.PENDING);
+        assignedStation.addComplaint(complaint);
+    }
+}
+
+class Driver extends Employee {
+    private TransportMode assignedTransport;
+
+    public Driver(int id, String name, Station station, TransportMode transport) {
+        super(id, name, station);
+        this.assignedTransport = transport;
+    }
+
+    @Override
+    public void processComplaint(Complaint complaint) {
+        if (complaint instanceof TechnicalComplaint) {
+            TechnicalComplaint techComplaint = (TechnicalComplaint) complaint;
+            if (techComplaint.getTransport() == assignedTransport) {
+                complaint.setStatus(ComplaintStatus.PENDING);
+                assignedStation.addComplaint(complaint);
+            }
+        }
+    }
+
+    public TransportMode getAssignedTransport() { return assignedTransport; }
+}
+
+class FareMedium {
+    private int id;
+    private String code;
+    private LocalDateTime purchaseDateTime;
+    private Zone zones;
+    private LocalDateTime activationDateTime;
+    private LocalDateTime expiryDateTime;
+    private double price;
+    private PaymentMethod paymentMethod;
+    private Station purchaseStation;
+    private FareMediumType type;
+    private boolean isValid;
+
+    public FareMedium(int id, String code, Zone zones, double price, PaymentMethod paymentMethod,
+                      LocalDateTime purchaseDateTime, FareMediumType type) {
+        this.id = id;
+        this.code = code;
+        this.zones = zones;
+        this.price = price;
+        this.paymentMethod = paymentMethod;
+        this.purchaseDateTime = purchaseDateTime;
+        this.type = type;
+        this.isValid = true;
+        setExpiryDateTime();
+    }
+
+    private void setExpiryDateTime() {
+        switch (type) {
+            case SINGLE_TICKET:
+                expiryDateTime = purchaseDateTime.plusHours(2);
+                break;
+            case DAILY_PASS:
+                expiryDateTime = purchaseDateTime.toLocalDate().atTime(23, 59);
+                break;
+            case WEEKLY_PASS:
+                expiryDateTime = purchaseDateTime.plusDays(7).toLocalDate().atTime(23, 59);
+                break;
+            case MONTHLY_PASS:
+                expiryDateTime = purchaseDateTime.plusMonths(1).toLocalDate().atTime(23, 59);
+                break;
+        }
+    }
+
+    public void validate() {
+        if (!isValid) {
+            throw new IllegalStateException("Fare medium is invalid");
+        }
+
+        if (expiryDateTime != null && LocalDateTime.now().isAfter(expiryDateTime)) {
+            System.out.println("Warning: Fare medium has expired. Please purchase a new one.");
+            return; // Exit without marking it as invalid to avoid further exceptions
+        }
+
+        if (activationDateTime == null) {
+            activationDateTime = LocalDateTime.now();
+        }
+    }
+
+    public void setPurchaseStation(Station station) { this.purchaseStation = station; }
+    public void setPurchaseDateTime(LocalDateTime purchaseDateTime) { this.purchaseDateTime = purchaseDateTime; }
+    public void setActivationDateTime(LocalDateTime activationDateTime) { this.activationDateTime = activationDateTime; }
+    public void setCode(String code) { this.code = code; }
+
+    public int getId() { return id; }
+    public String getCode() { return code; }
+    public LocalDateTime getPurchaseDateTime() { return purchaseDateTime; }
+    public Zone getZones() { return zones; }
+    public LocalDateTime getActivationDateTime() { return activationDateTime; }
+    public LocalDateTime getExpiryDateTime() { return expiryDateTime; }
+    public double getPrice() { return price; }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+    public Station getPurchaseStation() { return purchaseStation; }
+    public FareMediumType getType() { return type; }
+    public boolean isValid() { return isValid; }
+}
+
+abstract class Complaint {
+    private int id;
+    private Person submitter;
+    private String description;
+    private LocalDateTime reportDate;
+    private Station station;
+    private ComplaintStatus status;
+    private Station departureStation;
+    private Station arrivalStation;
+    private SeverityLevel severity;
+
+    public Complaint(int id, String description, Station station) {
+        this.id = id;
+        this.description = description;
+        this.station = station;
+        this.reportDate = LocalDateTime.now();
+        this.status = ComplaintStatus.PENDING;
+        this.severity = SeverityLevel.MEDIUM;
+    }
+
+    public void setSubmitter(Person submitter) { this.submitter = submitter; }
+    public void setStatus(ComplaintStatus status) { this.status = status; }
+    public void setDate(LocalDateTime date) { this.reportDate = date; }
+    public void setSeverity(SeverityLevel severity) { this.severity = severity; }
+    public void setDepartureStation(Station departureStation) { this.departureStation = departureStation; }
+    public void setArrivalStation(Station arrivalStation) { this.arrivalStation = arrivalStation; }
+
+    public abstract void processComplaint();
+
+    public int getId() { return id; }
+    public Person getSubmitter() { return submitter; }
+    public String getDescription() { return description; }
+    public LocalDateTime getReportDate() { return reportDate; }
+    public Station getStation() { return station; }
+    public ComplaintStatus getStatus() { return status; }
+    public Station getDepartureStation() { return departureStation; }
+    public Station getArrivalStation() { return arrivalStation; }
+    public SeverityLevel getSeverity() { return severity; }
+}
+
+class TechnicalComplaint extends Complaint {
+    private TechnicalIssueType issueType;
+    private TransportMode transport;
+    private SeverityLevel severity;
+
+    public TechnicalComplaint(int id, String description, Station station,
+                             TechnicalIssueType issueType, TransportMode transport) {
+        super(id, description, station);
+        this.issueType = issueType;
+        this.transport = transport;
+        this.severity = SeverityLevel.MEDIUM;
+    }
+
+    @Override
+    public void processComplaint() {
+        if (severity == SeverityLevel.HIGH && transport != null) {
+            transport.suspend();
+        }
+    }
+
+    public TechnicalIssueType getIssueType() { return issueType; }
+    public TransportMode getTransport() { return transport; }
+    public void setSeverity(SeverityLevel severity) { this.severity = severity; }
+    public SeverityLevel getSeverity() { return severity; }
+}
+
+class FarePaymentComplaint extends Complaint {
+    private double amount;
+    private PaymentMethod paymentMethod;
+
+    public FarePaymentComplaint(int id, String description, Station station, double amount, PaymentMethod paymentMethod) {
+        super(id, description, station);
+        this.amount = amount;
+        this.paymentMethod = paymentMethod;
+    }
+
+    @Override
+    public void processComplaint() {
+        // Implement refund or payment verification logic
+    }
+
+    public double getAmount() { return amount; }
+    public PaymentMethod getPaymentMethod() { return paymentMethod; }
+}
+
+class ServiceSafetyComplaint extends Complaint {
+    private ServiceSafetyIssueType issueType;
+
+    public ServiceSafetyComplaint(int id, String description, Station station, ServiceSafetyIssueType issueType) {
+        super(id, description, station);
+        this.issueType = issueType;
+    }
+
+    public ServiceSafetyComplaint(int id, String description, Station station) {
+        super(id, description, station);
+        this.issueType = ServiceSafetyIssueType.THEFT;
+    }
+
+    @Override
+    public void processComplaint() {
+        // Implement safety complaint processing
+    }
+
+    public ServiceSafetyIssueType getIssueType() { return issueType; }
+}
+
+class Station {
+    private String code;
+    private String name;
+    private String municipality;
+    private Zone zone;
+    private boolean isSuspended;
+    private List<TransportLine> lines;
+    private List<Complaint> complaints;
+    private List<FareMedium> soldFareMedia;
+    private List<FareMedium> validatedFareMedia;
+    private int magneticReaderCount;
+    private int counterCount;
+
+    public Station(String code, String name, String municipality, Zone zone, int magneticReaderCount, int counterCount) {
+        if (magneticReaderCount < 1 || counterCount < 1) {
+            throw new IllegalArgumentException("Station must have at least one magnetic reader and one counter");
+        }
+        this.code = code;
+        this.name = name;
+        this.municipality = municipality;
+        this.zone = zone;
+        this.isSuspended = false;
+        this.lines = new ArrayList<>();
+        this.complaints = new ArrayList<>();
+        this.soldFareMedia = new ArrayList<>();
+        this.validatedFareMedia = new ArrayList<>();
+        this.magneticReaderCount = magneticReaderCount;
+        this.counterCount = counterCount;
+    }
+
+    public void sellFareMedium(Passenger passenger, FareMedium fareMedium) {
+        if (!isSuspended) {
+            passenger.getFareMedia().add(fareMedium);
+            soldFareMedia.add(fareMedium);
+        } else {
+            throw new IllegalStateException("Cannot sell fare media at suspended station");
+        }
+    }
+
+    public void validateFareMedium(FareMedium fareMedium) {
+        if (!isSuspended) {
+            fareMedium.validate();
+            validatedFareMedia.add(fareMedium);
+        } else {
+            throw new IllegalStateException("Cannot validate fare media at suspended station");
+        }
+    }
+
+    public void suspend() {
+        this.isSuspended = true;
+        NotificationService.notifyPassengers("Station " + name + " is suspended for maintenance.");
+    }
+
+    public void reactivate() {
+        this.isSuspended = false;
+        NotificationService.notifyPassengers("Station " + name + " is back in service.");
+    }
+
+    public void addComplaint(Complaint complaint) { complaints.add(complaint); }
+    public void addTransportLine(TransportLine line) { lines.add(line); }
+
+    public String getCode() { return code; }
+    public String getName() { return name; }
+    public String getMunicipality() { return municipality; }
+    public Zone getZone() { return zone; }
+    public boolean isSuspended() { return isSuspended; }
+    public List<TransportLine> getLines() { return lines; }
+    public List<Complaint> getComplaints() { return complaints; }
+    public List<FareMedium> getSoldFareMedia() { return soldFareMedia; }
+    public List<FareMedium> getValidatedFareMedia() { return validatedFareMedia; }
+    public int getMagneticReaderCount() { return magneticReaderCount; }
+    public int getCounterCount() { return counterCount; }
+}
+
+class TransportLine {
+    private int number;
+    private double length;
+    private List<Station> stations;
+    private LocalTime firstDeparture;
+    private LocalTime lastDeparture;
+
+    public TransportLine(int number, double length, List<Station> stations, LocalTime firstDeparture, LocalTime lastDeparture) {
+        if (stations.size() < 3) {
+            throw new IllegalArgumentException("Transport line must have at least three stations");
+        }
+        if (lastDeparture.isBefore(firstDeparture)) {
+            throw new IllegalArgumentException("Last departure must be after first departure");
+        }
+        this.number = number;
+        this.length = length;
+        this.stations = stations;
+        this.firstDeparture = firstDeparture;
+        this.lastDeparture = lastDeparture;
+    }
+
+    public int getNumber() { return number; }
+    public double getLength() { return length; }
+    public List<Station> getStations() { return stations; }
+    public LocalTime getFirstDeparture() { return firstDeparture; }
+    public LocalTime getLastDeparture() { return lastDeparture; }
+}
+
+class TransportMode {
+    private String code;
+    private TransportLine line;
+    private PowerSupply powerSupply;
+    private double kilometersTraveled;
+    private boolean isSuspended;
+
+    public TransportMode(String code, TransportLine line, PowerSupply powerSupply) {
+        this.code = code;
+        this.line = line;
+        this.powerSupply = powerSupply;
+        this.isSuspended = false;
+    }
+
+    public void suspend() {
+        this.isSuspended = true;
+        NotificationService.notifyPassengers("Transport " + code + " is suspended for maintenance.");
+    }
+
+    public void reactivate() {
+        this.isSuspended = false;
+        NotificationService.notifyPassengers("Transport " + code + " is back in service.");
+    }
+
+    public String getCode() { return code; }
+    public TransportLine getLine() { return line; }
+    public PowerSupply getPowerSupply() { return powerSupply; }
+    public double getKilometersTraveled() { return kilometersTraveled; }
+    public boolean isSuspended() { return isSuspended; }
+    public void setKilometersTraveled(double kilometersTraveled) { this.kilometersTraveled = kilometersTraveled; }
+}
+
+// SERVICES
+class NotificationService {
+    public static void notifyPassengers(String message) {
+        System.out.println("Notification: " + message);
+    }
+}
+
+class ComplaintService {
+    public void processComplaint(Complaint complaint) {
+        complaint.processComplaint();
+
+        if (complaint instanceof TechnicalComplaint) {
+            TechnicalComplaint techComplaint = (TechnicalComplaint) complaint;
+            checkForSuspension(techComplaint);
+        }
+
+        if (ChronoUnit.HOURS.between(complaint.getReportDate(), LocalDateTime.now()) <= 24) {
+            complaint.setStatus(ComplaintStatus.APPROVED);
+        }
+    }
+
+    private void checkForSuspension(TechnicalComplaint complaint) {
+        Station station = complaint.getStation();
+        TransportMode transport = complaint.getTransport();
+
+        if (complaint.getSeverity() == SeverityLevel.HIGH) {
+            long highSeverityStationComplaints = station.getComplaints().stream()
+                    .filter(c -> c instanceof TechnicalComplaint)
+                    .filter(c -> ((TechnicalComplaint) c).getSeverity() == SeverityLevel.HIGH)
+                    .filter(c -> c.getStatus() == ComplaintStatus.APPROVED)
+                    .filter(c -> ChronoUnit.HOURS.between(c.getReportDate(), LocalDateTime.now()) <= 24)
+                    .count();
+
+            if (highSeverityStationComplaints >= 3) {
+                station.suspend();
+            }
+
+            if (transport != null) {
+                long highSeverityTransportComplaints = station.getComplaints().stream()
+                        .filter(c -> c instanceof TechnicalComplaint)
+                        .filter(c -> ((TechnicalComplaint) c).getTransport() == transport)
+                        .filter(c -> ((TechnicalComplaint) c).getSeverity() == SeverityLevel.HIGH)
+                        .filter(c -> c.getStatus() == ComplaintStatus.APPROVED)
+                        .filter(c -> ChronoUnit.HOURS.between(c.getReportDate(), LocalDateTime.now()) <= 24)
+                        .count();
+
+                if (highSeverityTransportComplaints >= 3) {
+                    transport.suspend();
+                }
+            }
+        }
+    }
+
+    public void resolveComplaint(Complaint complaint) {
+        complaint.setStatus(ComplaintStatus.RESOLVED);
+
+        if (complaint instanceof TechnicalComplaint) {
+            TechnicalComplaint techComplaint = (TechnicalComplaint) complaint;
+            Station station = techComplaint.getStation();
+            TransportMode transport = techComplaint.getTransport();
+
+            long pendingHighSeverityStationComplaints = station.getComplaints().stream()
+                    .filter(c -> c instanceof TechnicalComplaint)
+                    .filter(c -> ((TechnicalComplaint) c).getSeverity() == SeverityLevel.HIGH)
+                    .filter(c -> c.getStatus() != ComplaintStatus.RESOLVED)
+                    .count();
+
+            if (pendingHighSeverityStationComplaints == 0 && station.isSuspended()) {
+                station.reactivate();
+            }
+
+            if (transport != null) {
+                long pendingHighSeverityTransportComplaints = station.getComplaints().stream()
+                        .filter(c -> c instanceof TechnicalComplaint)
+                        .filter(c -> ((TechnicalComplaint) c).getTransport() == transport)
+                        .filter(c -> ((TechnicalComplaint) c).getSeverity() == SeverityLevel.HIGH)
+                        .filter(c -> c.getStatus() != ComplaintStatus.RESOLVED)
+                        .count();
+
+                if (pendingHighSeverityTransportComplaints == 0 && transport.isSuspended()) {
+                    transport.reactivate();
+                }
+            }
+        }
+    }
+
+    public List<Complaint> getComplaintsByStation(Station station) {
+        return station.getComplaints();
+    }
+
+    public List<Complaint> getComplaintsByTransport(TransportMode transport) {
+        return transport.getLine().getStations().stream()
+                .flatMap(s -> s.getComplaints().stream())
+                .filter(c -> c instanceof TechnicalComplaint)
+                .filter(c -> ((TechnicalComplaint) c).getTransport() == transport)
+                .collect(Collectors.toList());
+    }
+
+    public Map<ComplaintType, Long> getComplaintTypeDistribution(Station station) {
+        return station.getComplaints().stream()
+                .collect(Collectors.groupingBy(
+                        c -> c instanceof TechnicalComplaint ? ComplaintType.TECHNICAL :
+                                c instanceof FarePaymentComplaint ? ComplaintType.FARE_PAYMENT :
+                                        ComplaintType.SERVICE_SAFETY,
+                        Collectors.counting()
+                ));
+    }
+}
+
+class FareService {
+    public void sellFareMedium(Passenger passenger, Station station, FareMedium fareMedium, StationAgent agent) {
+        agent.sellFareMedium(passenger, fareMedium);
+    }
+
+    public List<FareMedium> getPurchaseHistoryByStation(Station station) {
+        return station.getSoldFareMedia();
+    }
+
+    public double calculateRevenueByPaymentMethod(PaymentMethod method) {
+        return SystemManager.getInstance().getStations().stream()
+                .flatMap(s -> s.getSoldFareMedia().stream())
+                .filter(f -> f.getPaymentMethod() == method)
+                .mapToDouble(FareMedium::getPrice)
+                .sum();
+    }
+
+    public int countVisitors(Station station, LocalDateTime start, LocalDateTime end) {
+        return (int) station.getValidatedFareMedia().stream()
+                .filter(f -> f.getActivationDateTime() != null)
+                .filter(f -> !f.getActivationDateTime().isBefore(start) && !f.getActivationDateTime().isAfter(end))
+                .count();
+    }
+
+    public Map<Zone, Long> getFareMediumDistributionByZone() {
+        return SystemManager.getInstance().getStations().stream()
+                .flatMap(s -> s.getSoldFareMedia().stream())
+                .collect(Collectors.groupingBy(FareMedium::getZones, Collectors.counting()));
+    }
+
+    public Map<FareMediumType, Long> getFareMediumDistributionByType() {
+        return SystemManager.getInstance().getStations().stream()
+                .flatMap(s -> s.getSoldFareMedia().stream())
+                .collect(Collectors.groupingBy(FareMedium::getType, Collectors.counting()));
+    }
+}
+
+class ReportService {
+    public Map<PaymentMethod, Double> generateRevenueReport() {
+        return SystemManager.getInstance().getStations().stream()
+                .flatMap(s -> s.getSoldFareMedia().stream())
+                .collect(Collectors.groupingBy(
+                        FareMedium::getPaymentMethod,
+                        Collectors.summingDouble(FareMedium::getPrice)
+                ));
+    }
+
+    public Map<String, Long> getComplaintStatisticsByStation(Station station) {
+        return station.getComplaints().stream()
+                .collect(Collectors.groupingBy(
+                        c -> c.getClass().getSimpleName(),
+                        Collectors.counting()
+                ));
+    }
+
+    public Map<String, Long> getComplaintStatisticsByTransport(TransportMode transport) {
+        return transport.getLine().getStations().stream()
+                .flatMap(s -> s.getComplaints().stream())
+                .filter(c -> c instanceof TechnicalComplaint)
+                .filter(c -> ((TechnicalComplaint) c).getTransport() == transport)
+                .collect(Collectors.groupingBy(
+                        c -> c.getClass().getSimpleName(),
+                        Collectors.counting()
+                ));
+    }
+
+    public long countSuspendedStations(List<Station> stations) {
+        return stations.stream().filter(Station::isSuspended).count();
+    }
+
+    public long countSuspendedTransports(List<TransportMode> transports) {
+        return transports.stream().filter(TransportMode::isSuspended).count();
+    }
+
+    public Map<DayOfWeek, Long> getPeakOffPeakStats(Station station, LocalDateTime start, LocalDateTime end) {
+        return station.getValidatedFareMedia().stream()
+                .filter(f -> f.getActivationDateTime() != null)
+                .filter(f -> !f.getActivationDateTime().isBefore(start) && !f.getActivationDateTime().isAfter(end))
+                .collect(Collectors.groupingBy(
+                        f -> f.getActivationDateTime().getDayOfWeek(),
+                        Collectors.counting()
+                ));
+    }
+
+    public Map<String, Long> getPeakHourStats(Station station) {
+        return station.getValidatedFareMedia().stream()
+                .filter(f -> f.getActivationDateTime() != null)
+                .collect(Collectors.groupingBy(
+                        f -> {
+                            int hour = f.getActivationDateTime().getHour();
+                            if (hour >= 7 && hour < 9 || hour >= 17 && hour < 19) return "Peak";
+                            return "Off-Peak";
+                        },
+                        Collectors.counting()
+                ));
+    }
+}
+
+class SystemManager {
+    private static SystemManager instance;
+    private List<Station> stations;
+    private List<TransportMode> transportModes;
+    private List<Passenger> passengers;
+    private List<Employee> employees;
+    private FareService fareService;
+    private ComplaintService complaintService;
+    private ReportService reportService;
+
+    private SystemManager() {
+        this.stations = new ArrayList<>();
+        this.transportModes = new ArrayList<>();
+        this.passengers = new ArrayList<>();
+        this.employees = new ArrayList<>();
+        this.fareService = new FareService();
+        this.complaintService = new ComplaintService();
+        this.reportService = new ReportService();
+    }
+
+    public static SystemManager getInstance() {
+        if (instance == null) {
+            instance = new SystemManager();
+        }
+        return instance;
+    }
+
+    public void addStation(Station station) { stations.add(station); }
+    public void addTransportMode(TransportMode transport) { transportModes.add(transport); }
+    public void registerPassenger(Passenger passenger) { passengers.add(passenger); }
+    public void hireEmployee(Employee employee) { employees.add(employee); }
+
+    public void processFareSale(Passenger passenger, Station station, FareMedium fareMedium, StationAgent agent) {
+        fareService.sellFareMedium(passenger, station, fareMedium, agent);
+    }
+
+    public void processComplaint(Complaint complaint) {
+        complaintService.processComplaint(complaint);
+    }
+
+    public void generateFareMediumReport(Station station) {
+        List<FareMedium> history = fareService.getPurchaseHistoryByStation(station);
+        System.out.println("Fare Medium Purchase History for " + station.getName() + ":");
+        history.forEach(f -> System.out.println("ID: " + f.getId() + ", Type: " + f.getType() + ", Price: " + f.getPrice() +
+                ", Method: " + f.getPaymentMethod() + ", Zones: " + f.getZones()));
+    }
+
+    public void generateRevenueReport() {
+        Map<PaymentMethod, Double> report = reportService.generateRevenueReport();
+        System.out.println("Revenue by Payment Method:");
+        report.forEach((method, revenue) -> System.out.println(method + ": " + revenue));
+    }
+
+    public void analyzeTransportUsage(Station station, LocalDateTime start, LocalDateTime end) {
+        int visitors = fareService.countVisitors(station, start, end);
+        System.out.println("Visitors to " + station.getName() + " from " + start + " to " + end + ": " + visitors);
+
+        Map<DayOfWeek, Long> peakStats = reportService.getPeakOffPeakStats(station, start, end);
+        System.out.println("Peak/Off-Peak Statistics:");
+        peakStats.forEach((day, count) -> System.out.println(day + ": " + count));
+
+        Map<String, Long> peakHourStats = reportService.getPeakHourStats(station);
+        System.out.println("Peak Hour Statistics:");
+        peakHourStats.forEach((period, count) -> System.out.println(period + ": " + count));
+    }
+
+    public void displayComplaintStatistics(Station station) {
+        Map<String, Long> stats = reportService.getComplaintStatisticsByStation(station);
+        System.out.println("Complaint Statistics for " + station.getName() + ":");
+        stats.forEach((type, count) -> System.out.println(type + ": " + count));
+
+        Map<ComplaintType, Long> typeDistribution = complaintService.getComplaintTypeDistribution(station);
+        System.out.println("Complaint Type Distribution:");
+        typeDistribution.forEach((type, count) -> System.out.println(type + ": " + count));
+    }
+
+    public void displayComplaintStatistics(TransportMode transport) {
+        Map<String, Long> stats = reportService.getComplaintStatisticsByTransport(transport);
+        System.out.println("Complaint Statistics for Transport " + transport.getCode() + ":");
+        stats.forEach((type, count) -> System.out.println(type + ": " + count));
+    }
+
+    public void displaySuspensionStatistics() {
+        long suspendedStations = reportService.countSuspendedStations(stations);
+        long suspendedTransports = reportService.countSuspendedTransports(transportModes);
+        System.out.println("Suspended Stations: " + suspendedStations);
+        System.out.println("Suspended Transport Modes: " + suspendedTransports);
+    }
+
+    public void suspendStation(Station station) {
+        station.suspend();
+        System.out.println("Station " + station.getName() + " suspended.");
+    }
+
+    public void suspendTransport(TransportMode transport) {
+        transport.suspend();
+        System.out.println("Transport " + transport.getCode() + " suspended.");
+    }
+
+    public void printPeakAndOffPeak() {
+        for (Station station : stations) {
+            Map<String, Long> peakStats = reportService.getPeakHourStats(station);
+            System.out.println("Peak/Off-Peak for Station " + station.getName() + ":");
+            peakStats.forEach((period, count) -> System.out.println(period + ": " + count));
+        }
+    }
+
+    public void generateZoneUsageReport() {
+        Map<Zone, Long> zoneDistribution = fareService.getFareMediumDistributionByZone();
+        System.out.println("Fare Medium Distribution by Zone:");
+        zoneDistribution.forEach((zone, count) -> System.out.println(zone + ": " + count));
+    }
+
+    public void generateFareTypeReport() {
+        Map<FareMediumType, Long> typeDistribution = fareService.getFareMediumDistributionByType();
+        System.out.println("Fare Medium Distribution by Type:");
+        typeDistribution.forEach((type, count) -> System.out.println(type + ": " + count));
+    }
+
+    public List<Station> getStations() { return stations; }
+    public List<TransportMode> getTransportModes() { return transportModes; }
+    public List<Passenger> getPassengers() { return passengers; }
+    public List<Employee> getEmployees() { return employees; }
+    public ComplaintService getComplaintService() { return complaintService; }
+    public FareService getFareService() { return fareService; }
+    public ReportService getReportService() { return reportService; }
+}
+
+// MAIN CLASS
+public class Pub {
+    public static void main(String[] args) {
+        SystemManager manager = SystemManager.getInstance();
+
+        // Setup stations
+        Station station1 = new Station("S003", "Central", "Downtown", Zone.CENTER, 2, 1);
+        Station station2 = new Station("S004", "North Station", "Uptown", Zone.CENTER, 2, 1);
+        Station station3 = new Station("S005", "South Station", "Suburbs", Zone.BOTH, 2, 1);
+        manager.addStation(station1);
+        manager.addStation(station2);
+        manager.addStation(station3);
+
+        // Setup transport line and mode
+        TransportLine line = new TransportLine(1, 10.5,
+                Arrays.asList(station1, station2, station3),
+                LocalTime.of(6, 0), LocalTime.of(22, 0));
+        TransportMode transport = new TransportMode("T005", line, PowerSupply.DIESEL);
+        manager.addTransportMode(transport);
+
+        // Setup employee
+        StationAgent agent = new StationAgent(1, "Agent Smith", station1);
+        Driver driver = new Driver(2, "Driver Jones", station1, transport);
+        manager.hireEmployee(agent);
+        manager.hireEmployee(driver);
+
+        // Setup passenger
+        Passenger p1 = new Passenger(1, "John Doe");
+        Passenger p2 = new Passenger(2, "Jane Roe");
+        manager.registerPassenger(p1);
+        manager.registerPassenger(p2);
+
+        // Sell and validate fare mediums
+        FareMedium f1 = new FareMedium(1, "F001", Zone.CENTER, 120, PaymentMethod.CASH,
+                LocalDateTime.of(2025, Month.APRIL, 21, 8, 15), FareMediumType.SINGLE_TICKET);
+        FareMedium f2 = new FareMedium(2, "F002", Zone.BOTH, 200, PaymentMethod.DAHABIA_CARD,
+                LocalDateTime.of(2025, Month.APRIL, 21, 9, 30), FareMediumType.DAILY_PASS);
+        FareMedium f3 = new FareMedium(3, "F003", Zone.CENTER, 150, PaymentMethod.BARIDIMOB_APP,
+                LocalDateTime.of(2025, Month.APRIL, 21, 10, 0), FareMediumType.WEEKLY_PASS);
+
+        manager.processFareSale(p1, station1, f1, agent);
+        manager.processFareSale(p2, station1, f2, agent);
+        manager.processFareSale(p1, station1, f3, agent);
+
+        // Validate fare media
+        f1.validate();
+        f1.setActivationDateTime(LocalDateTime.of(2025, Month.APRIL, 21, 8, 30));
+        station1.validateFareMedium(f1);
+        f2.validate();
+        f2.setActivationDateTime(LocalDateTime.of(2025, Month.APRIL, 21, 9, 45));
+        station1.validateFareMedium(f2);
+        f3.validate();
+        f3.setActivationDateTime(LocalDateTime.of(2025, Month.APRIL, 21, 10, 15));
+        station1.validateFareMedium(f3);
+
+        // Complaints
+        TechnicalComplaint c1 = new TechnicalComplaint(112, "Schedule Display Failure", station1,
+                TechnicalIssueType.SCHEDULE_DISPLAY, transport);
+        c1.setSeverity(SeverityLevel.HIGH);
+        c1.setStatus(ComplaintStatus.APPROVED);
+        c1.setDate(LocalDateTime.of(2025, Month.APRIL, 21, 14, 0));
+        p1.submitComplaint(c1);
+        station1.addComplaint(c1);
+        manager.processComplaint(c1);
+
+        ServiceSafetyComplaint c2 = new ServiceSafetyComplaint(113, "Theft Incident", station1);
+        c2.setSeverity(SeverityLevel.LOW);
+        c2.setStatus(ComplaintStatus.REJECTED);
+        c2.setDate(LocalDateTime.of(2025, Month.APRIL, 21, 12, 0));
+        p2.submitComplaint(c2);
+        station1.addComplaint(c2);
+        manager.processComplaint(c2);
+
+        TechnicalComplaint c3 = new TechnicalComplaint(114, "Fare Reader Issue", station1,
+                TechnicalIssueType.FARE_READER, null);
+        c3.setStatus(ComplaintStatus.RESOLVED);
+        p1.submitComplaint(c3);
+        station1.addComplaint(c3);
+        manager.processComplaint(c3);
+
+        TechnicalComplaint c4 = new TechnicalComplaint(115, "AC Failure", station1,
+                TechnicalIssueType.AIR_CONDITIONING, transport);
+        c4.setSeverity(SeverityLevel.HIGH);
+        c4.setStatus(ComplaintStatus.APPROVED);
+        c4.setDate(LocalDateTime.of(2025, Month.APRIL, 21, 15, 0));
+        p1.submitComplaint(c4);
+        station1.addComplaint(c4);
+        manager.processComplaint(c4);
+
+        TechnicalComplaint c5 = new TechnicalComplaint(116, "Sound System Issue", station1,
+                TechnicalIssueType.SOUND_SYSTEM, transport);
+        c5.setSeverity(SeverityLevel.HIGH);
+        c5.setStatus(ComplaintStatus.APPROVED);
+        c5.setDate(LocalDateTime.of(2025, Month.APRIL, 21, 16, 0));
+        p1.submitComplaint(c5);
+        station1.addComplaint(c5);
+        manager.processComplaint(c5);
+
+        FarePaymentComplaint c6 = new FarePaymentComplaint(117, "Overcharged", station1, 50.0, PaymentMethod.BARIDIMOB_APP);
+        c6.setSeverity(SeverityLevel.MEDIUM);
+        c6.setStatus(ComplaintStatus.APPROVED);
+        c6.setDate(LocalDateTime.of(2025, Month.APRIL, 21, 13, 0));
+        p2.submitComplaint(c6);
+        station1.addComplaint(c6);
+        manager.processComplaint(c6);
+
+        // Resolve complaints to trigger reactivation
+        manager.getComplaintService().resolveComplaint(c1);
+        manager.getComplaintService().resolveComplaint(c4);
+        manager.getComplaintService().resolveComplaint(c5);
+
+        // Print Reports
+        System.out.println("a. Purchase History for Station " + station1.getName() + ":");
+        System.out.println("----------------------------------------------------");
+        manager.generateFareMediumReport(station1);
+
+        System.out.println("b. Revenue Report:");
+        System.out.println("---------------");
+        manager.generateRevenueReport();
+
+        System.out.println("c. Visitors at Station " + station1.getName() + " from 2025-04-21 to 2025-04-21:");
+        System.out.println("-------------------------------------------------------------------");
+        manager.analyzeTransportUsage(station1,
+                LocalDateTime.of(2025, 4, 21, 0, 0),
+                LocalDateTime.of(2025, 4, 21, 23, 59));
+
+        System.out.println("d. Usage Statistics:");
+        System.out.println("-----------------");
+        manager.printPeakAndOffPeak();
+
+        System.out.println("e. Complaints for Station " + station1.getName() + ":");
+        System.out.println("---------------------------------------");
+        manager.displayComplaintStatistics(station1);
+
+        System.out.println("f. Complaints for Transport Code [" + transport.getCode() + "]:");
+        System.out.println("--------------------------------------");
+        manager.displayComplaintStatistics(transport);
+
+        System.out.println("g. Suspension Statistics:");
+        System.out.println("------------------------");
+        manager.displaySuspensionStatistics();
+
+        System.out.println("h. Zone Usage Report:");
+        System.out.println("-------------------");
+        manager.generateZoneUsageReport();
+
+        System.out.println("i. Fare Type Report:");
+        System.out.println("------------------");
+        manager.generateFareTypeReport();
+
+        // Print all complaints
+        System.out.println("j. All Complaints:");
+        System.out.println("-----------------");
+        System.out.println("Complaint #C112 | Status: " + c1.getStatus() + " | Type: Technical | Severity: High | Concern: Transport " + transport.getCode() + " | Date: 2025-04-21");
+        System.out.println("Complaint #C113 | Status: " + c2.getStatus() + " | Type: Service/Safety | Issue: Theft | Station: " + station1.getCode() + " | Date: 2025-04-21");
+        System.out.println("Complaint #C114 | Status: " + c3.getStatus() + " | Type: Technical | Concern: Fare Reader | Station: " + station1.getCode());
+        System.out.println("Complaint #C115 | Status: " + c4.getStatus() + " | Type: Technical | Severity: High | Concern: Transport " + transport.getCode() + " | Date: 2025-04-21");
+        System.out.println("Complaint #C116 | Status: " + c5.getStatus() + " | Type: Technical | Severity: High | Concern: Transport " + transport.getCode() + " | Date: 2025-04-21");
+        System.out.println("Complaint #C117 | Status: " + c6.getStatus() + " | Type: Fare Payment | Issue: Overcharged | Amount: 50.0 | Station: " + station1.getCode() + " | Date: 2025-04-21");
+    }
+}
